@@ -255,13 +255,22 @@ function SpoolManagerEditSpoolDialog(){
             var convertedDateTime = moment(data.firstUse, "DD.MM.YYYY HH:mm").format("YYYY-MM-DDTHH:mm")
             this.firstUseKO(convertedDateTime);
         }
+        else{
+            this.firstUseKO(null);
+        }
         if (updateData.lastUse){
             var convertedDateTime = moment(data.lastUse, "DD.MM.YYYY HH:mm").format("YYYY-MM-DDTHH:mm")
             this.lastUseKO(convertedDateTime);
         }
+        else{
+            this.lastUseKO(null);
+        }
         if (updateData.purchasedOn){
             var convertedDateTime = moment(data.purchasedOn, "DD.MM.YYYY").format("YYYY-MM-DD")
             this.purchasedOnKO(convertedDateTime);
+        }
+        else {
+            this.purchasedOnKO(null);
         }
 
         this.purchasedFrom(updateData.purchasedFrom);
@@ -827,9 +836,11 @@ function SpoolManagerEditSpoolDialog(){
             // self.spoolItemForEditing.lastUse(null);
             // self.spoolItemForEditing.lastUseKO(null);
             // self.spoolItemForEditing.purchasedOn(null);
-            // self.spoolItemForEditing.purchasedOnKO(null);
             // self.spoolItemForEditing.remainingCombinedWeight(0);
             // self.spoolItemForEditing.totalCombinedWeight(0);
+            
+            // Force the current day on new spools
+            self.spoolItemForEditing.purchasedOnKO(moment().format("YYYY-MM-DD"))
         } else {
             self.isExistingSpool(true);
             // Make a copy of provided spoolItem
@@ -859,46 +870,73 @@ function SpoolManagerEditSpoolDialog(){
         self._copySpoolItemForEditing(self.spoolItemForEditing);
     }
 
-    self.copySpoolItemFromTemplate = function(spoolItem){
+    self.copySpoolItemFromTemplate = function (spoolItem) {
         // Copy everything
         self._copySpoolItemForEditing(spoolItem);
-        // reset values that should'nt be copied
+        // Reset values that shouldn't be copied
 
+        var defaultExcludedNumericFields = [
+            "usedLength",
+            "usedLengthPercentage",
+            "usedWeight",
+            "usedPercentage",
+        ];
 
-        var defaultExcludedFields = ["selectedForTool","version", "databaseId", "isTemplate","firstUseKO", "lastUseKO",
-                                    "remainingWeight","remainingPercentage","usedLength", "usedLengthPercentage","remainingLength", "remainingLengthPercentage",
-                                    "usedWeight", "usedPercentage", "totalCombinedWeight", "remainingCombinedWeight"];
+        var defaultExcludedFields = [
+            "selectedForTool",
+            "version",
+            "firstUseKO",
+            "lastUseKO",
+            "remainingWeight",
+            "remainingPercentage",
+            "remainingLength",
+            "remainingLengthPercentage",
+            "totalCombinedWeight",
+            "remainingCombinedWeight",
+        ].concat(defaultExcludedNumericFields);
+
         var allFieldNames = Object.keys(spoolItem);
-        for (const fieldName of allFieldNames){
-            if (self.pluginSettings.excludedFromTemplateCopy().includes(fieldName) ||
-                defaultExcludedFields.includes(fieldName)){
-                var currentValue = self.spoolItemForEditing[fieldName]();
-                self.spoolItemForEditing[fieldName]("");
+        var excludedFieldsFromSettings =
+            self.pluginSettings.excludedFromTemplateCopy();
+        for (const fieldName of allFieldNames) {
+            if (
+                excludedFieldsFromSettings.includes(fieldName) ||
+                defaultExcludedFields.includes(fieldName)
+            ) {
+                if (defaultExcludedNumericFields.includes(fieldName)) {
+                    self.spoolItemForEditing[fieldName]("0");
+                } else {
+                    self.spoolItemForEditing[fieldName]("");
+                }
             }
         }
-        if (self.pluginSettings.excludedFromTemplateCopy().includes("allNotes")) {
+        if (excludedFieldsFromSettings.includes("allNotes")) {
             if (self.noteEditor != null) {
-                self.noteEditor.setText("", 'api');
+                self.noteEditor.setText("", "api");
             }
             // self.spoolItemForEditing["noteText"]("");
             // self.spoolItemForEditing["noteDeltaFormat"]("");
             // self.spoolItemForEditing["noteHtml"]("");
         }
+        // Trigger the auto-calculation
+        var copiedWeight = self.spoolItemForEditing["spoolWeight"]();
+        self.spoolItemForEditing.spoolWeight(0);
+        self.spoolItemForEditing.spoolWeight(copiedWeight);
 
         // close dialog
-        self.templateSpoolDialog.modal('hide');
-    }
+        self.templateSpoolDialog.modal("hide");
+    };
 
-    self._copySpoolItemForEditing = function(spoolItem){
+    self._copySpoolItemForEditing = function (spoolItem) {
         self.isExistingSpool(false);
         let spoolItemCopy = ko.mapping.toJS(spoolItem);
         self.spoolItemForEditing.update(spoolItemCopy);
         self.spoolItemForEditing.isTemplate(false);
-        // self.spoolItemForEditing.isActive(true);  is set by 'isInActive'
+        // This sets isActive as well
         self.spoolItemForEditing.isInActive(false);
         self.spoolItemForEditing.databaseId(null);
         self.spoolItemForEditing.isSpoolVisible(true);
-    }
+    };
 
     self.saveSpoolItem = function(){
 
