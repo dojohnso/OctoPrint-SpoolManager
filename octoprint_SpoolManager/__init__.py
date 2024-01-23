@@ -743,14 +743,17 @@ class SpoolmanagerPlugin(
             if (selectedSpool != None):
                 self.set_temp_offsets(toolIndex, selectedSpool)
 
-        #
-        # databaseSettings = self._buildDatabaseSettingsFromPluginSettings()
-        #
-        # self._databaseManager.assignNewDatabaseSettings(databaseSettings)
-        # testResult = self._databaseManager.testDatabaseConnection(databaseSettings)
-        # if (testResult != None):
-        #   # TODO Send to client
-        #   pass
+		# In case we are switching between internal and external storage
+        databaseSettings = self._buildDatabaseSettingsFromPluginSettings()
+        self._databaseManager.assignNewDatabaseSettings(databaseSettings)
+		# testResult = self._databaseManager.testDatabaseConnection(databaseSettings)
+		# if (testResult != None):
+		# 	# TODO Send to client
+		# 	pass
+
+        self._sendDataToClient(dict(
+            action="reloadTable and sidebarSpools"
+        ))
 
 
     # to allow the frontend to trigger an update
@@ -925,7 +928,8 @@ class SpoolmanagerPlugin(
                 EventBusKeys.EVENT_BUS_SPOOL_DELETED
                 ]
 
-
+    def is_blueprint_csrf_protected(self):
+        return True
 
     # def message_on_connect(self, comm, script_type, script_name, *args, **kwargs):
     #   print(script_name)

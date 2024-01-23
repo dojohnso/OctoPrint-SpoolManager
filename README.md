@@ -4,7 +4,7 @@
 [![Released](https://img.shields.io/badge/dynamic/json.svg?color=brightgreen&label=released&url=https://api.github.com/repos/dojohnso/OctoPrint-SpoolManager/releases&query=$[0].published_at)]()
 ![GitHub Releases (by Release)](https://img.shields.io/github/downloads/dojohnso/OctoPrint-SpoolManager/latest/total.svg)
 
-The OctoPrint-Plugin manages all spool informations and stores it in a database.
+The OctoPrint-Plugin manages all spool informations and stores it in a database. Now includes the option to store to an external Postgres or MySQL database to share across multiple instances of OctoPrint.
 
 #### *NOTE: this plugin has been abandoned by the original creator and adopted here by a new maintainer*
 
@@ -13,7 +13,7 @@ The OctoPrint-Plugin manages all spool informations and stores it in a database.
 <a href="https://www.buymeacoffee.com/djohnson.tech" target="_blank"><img src="https://djohnson.tech/images/white-button.png" width=300 /></a>
 
 ## Tested with:
-- OctoPrint 1.7.2:  with Python 3.7.3
+- OctoPrint 1.9.3:  with Python 3.11.5
 
 ## Included features
 
@@ -39,9 +39,9 @@ The OctoPrint-Plugin manages all spool informations and stores it in a database.
 - [X] Scan QR/Barcodes of a spool
 - [X] Multi Tool support
 - [X] Support for manual mid-print filament change
+- [X] External Database Support (MySQL or Postgres)
 
 ## Planning / next features
-- [ ] External Database (IN PROGRESS)
 - [ ] PrintJobHistory integration [PrintJobHistory-Plugin](https://github.com/dojohnso/OctoPrint-PrintJobHistory)
 - [ ] Capture Spool-Image
 - [ ] ...more planing details could be found [here](https://github.com/dojohnso/OctoPrint-SpoolManager/projects/1)
@@ -57,6 +57,8 @@ The OctoPrint-Plugin manages all spool informations and stores it in a database.
 ![editSpool-dialog](screenshots/editSpool-dialog.png "EditSpool-Dialog")
 
 ![scanSpool-dialog](screenshots/scanSpool-dialog.png "ScanSpool-Dialog")
+
+![externaldb-dialog](screenshots/externalDatabase.png "External-Database")
 
 ## Setup
 Install via the bundled [Plugin Manager](http://docs.octoprint.org/en/master/bundledplugins/pluginmanager.html)

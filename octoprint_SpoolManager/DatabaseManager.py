@@ -10,6 +10,7 @@ import sqlite3
 
 from octoprint_SpoolManager.WrappedLoggingHandler import WrappedLoggingHandler
 from peewee import *
+from playhouse.shortcuts import model_to_dict, dict_to_model
 
 from octoprint_SpoolManager.api import Transformer
 from octoprint_SpoolManager.common import StringUtils
@@ -74,7 +75,7 @@ class DatabaseManager(object):
 			databaseType = self._databaseSettings.type
 			databaseName = self._databaseSettings.name
 			host = self._databaseSettings.host
-			port = self._databaseSettings.port
+			port = int(self._databaseSettings.port)
 			user = self._databaseSettings.user
 			password = self._databaseSettings.password
 			if ("postgres" == databaseType):
@@ -111,8 +112,8 @@ class DatabaseManager(object):
 		schemeVersionFromDatabaseModel = None
 		schemeVersionFromDatabase = None
 		try:
-			cursor = self.db.execute_sql('select "value" from "spo_pluginmetadatamodel" where key="'+PluginMetaDataModel.KEY_DATABASE_SCHEME_VERSION+'";')
-			result = cursor.fetchone()
+			cursor = PluginMetaDataModel.get(PluginMetaDataModel.key == PluginMetaDataModel.KEY_DATABASE_SCHEME_VERSION)
+			result = cursor.value
 			if (result != None):
 				schemeVersionFromDatabase = int(result[0])
 				self._logger.info("Current databasescheme: " + str(schemeVersionFromDatabase))
@@ -602,6 +603,10 @@ class DatabaseManager(object):
 		existsDatabaseFile = str(os.path.exists(self._databaseSettings.fileLocation))
 		self._logger.info("Databasefile '" +self._databaseSettings.fileLocation+ "' exists: " + existsDatabaseFile)
 
+		if (existsDatabaseFile == False):
+			self._createDatabase(FORCE_CREATE_TABLES)
+			self.closeDatabase()
+
 		import logging
 		logger = logging.getLogger('peewee')
 		# we need only the single logger without parent
@@ -637,8 +642,8 @@ class DatabaseManager(object):
 				backupCurrentDatabaseSettings = self._databaseSettings
 				self._databaseSettings = databaseSettings
 
-			succesfull = self.connectoToDatabase()
-			if (succesfull == False):
+			succesful = self.connectoToDatabase()
+			if (succesful == False):
 				result = self.getCurrentErrorMessageDict()
 		finally:
 			try:
@@ -663,7 +668,7 @@ class DatabaseManager(object):
 		# build connection
 		try:
 			if (self.sqlLoggingEnabled):
-				self._logger.info("Databaseconnection with...")
+				self._logger.info("Database connection with...")
 				self._logger.info(self._databaseSettings)
 			self._database = self._buildDatabaseConnection()
 
@@ -673,7 +678,7 @@ class DatabaseManager(object):
 
 			self._database.connect()
 			if (self.sqlLoggingEnabled):
-				self._logger.info("Database connection succesful. Checking Scheme versions")
+				self._logger.info("Database connection successful. Checking Scheme versions")
 			# TODO do I realy need to check the meta-infos in the connect function
 			# schemeVersionFromPlugin = str(CURRENT_DATABASE_SCHEME_VERSION)
 			# schemeVersionFromDatabaseModel = str(PluginMetaDataModel.get(PluginMetaDataModel.key == PluginMetaDataModel.KEY_DATABASE_SCHEME_VERSION).value)
@@ -720,34 +725,38 @@ class DatabaseManager(object):
 
 	def backupDatabaseFile(self):
 
-		if (os.path.exists(self._databaseSettings.fileLocation)):
-			self._logger.info("Starting database backup")
-			now = datetime.datetime.now()
-			currentDate = now.strftime("%Y%m%d-%H%M")
-			currentSchemeVersion = "unknown"
-			try:
-				currentSchemeVersion = PluginMetaDataModel.get(
-					PluginMetaDataModel.key == PluginMetaDataModel.KEY_DATABASE_SCHEME_VERSION)
-				if (currentSchemeVersion != None):
-					currentSchemeVersion = str(currentSchemeVersion.value)
-			except Exception as e:
-				self._logger.exception("Could not read databasescheme version:" + str(e))
-
-			backupDatabaseFilePath = self._databaseSettings.fileLocation[0:-3] + "-backup-V" + currentSchemeVersion + "-" +currentDate+".db"
-			# backupDatabaseFileName = "spoolmanager-backup-"+currentDate+".db"
-			# backupDatabaseFilePath = os.path.join(backupFolder, backupDatabaseFileName)
-			if not os.path.exists(backupDatabaseFilePath):
-				shutil.copy(self._databaseSettings.fileLocation, backupDatabaseFilePath)
-				self._logger.info("Backup of spoolmanager database created '" + backupDatabaseFilePath + "'")
-			else:
-				self._logger.warn("Backup of spoolmanager database ('" + backupDatabaseFilePath + "') is already present. No backup created.")
-			return backupDatabaseFilePath
+		if (self._databaseSettings.useExternal == True):
+			self._logger.info("No database backup needed, because we are using an external database.")
 		else:
-			self._logger.info("No database backup needed, because there is no databasefile '"+str(self._databaseSettings.fileLocation)+"'")
+			if (os.path.exists(self._databaseSettings.fileLocation)):
+				self._logger.info("Starting database backup")
+				now = datetime.datetime.now()
+				currentDate = now.strftime("%Y%m%d-%H%M")
+				currentSchemeVersion = "unknown"
+				try:
+					currentSchemeVersion = PluginMetaDataModel.get(
+						PluginMetaDataModel.key == PluginMetaDataModel.KEY_DATABASE_SCHEME_VERSION)
+					if (currentSchemeVersion != None):
+						currentSchemeVersion = str(currentSchemeVersion.value)
+				except Exception as e:
+					self._logger.exception("Could not read databasescheme version:" + str(e))
+
+				backupDatabaseFilePath = self._databaseSettings.fileLocation[0:-3] + "-backup-V" + currentSchemeVersion + "-" +currentDate+".db"
+				# backupDatabaseFileName = "spoolmanager-backup-"+currentDate+".db"
+				# backupDatabaseFilePath = os.path.join(backupFolder, backupDatabaseFileName)
+				if not os.path.exists(backupDatabaseFilePath):
+					shutil.copy(self._databaseSettings.fileLocation, backupDatabaseFilePath)
+					self._logger.info("Backup of spoolmanager database created '" + backupDatabaseFilePath + "'")
+				else:
+					self._logger.warn("Backup of spoolmanager database ('" + backupDatabaseFilePath + "') is already present. No backup created.")
+				return backupDatabaseFilePath
+			else:
+				self._logger.info("No database backup needed, because there is no databasefile '"+str(self._databaseSettings.fileLocation)+"'")
 
 	def reCreateDatabase(self, databaseSettings = None):
 		self._currentErrorMessageDict = None
 		self._logger.info("ReCreating Database")
+		self._logger.info(databaseSettings)
 
 		backupCurrentDatabaseSettings = None
 		if (databaseSettings != None):
@@ -766,6 +775,74 @@ class DatabaseManager(object):
 			if (backupCurrentDatabaseSettings != None):
 				self._databaseSettings = backupCurrentDatabaseSettings
 
+	def copySpoolData(self, databaseSettings = None):
+
+		loadResult = False
+		copySpoolCount = 0
+
+		backupCurrentDatabaseSettings = None
+		if (databaseSettings != None):
+			backupCurrentDatabaseSettings = self._databaseSettings
+		else:
+			# use default settings
+			databaseSettings = self._databaseSettings
+			backupCurrentDatabaseSettings = self._databaseSettings
+
+		try:
+			currentDatabaseType = databaseSettings.type
+			currentUseExternal = databaseSettings.useExternal
+
+			# First load meta from local sqlite database
+			databaseSettings.type = "sqlite"
+			databaseSettings.baseFolder = self._databaseSettings.baseFolder
+			databaseSettings.fileLocation = self._databaseSettings.fileLocation
+			databaseSettings.useExternal = False
+			self._databaseSettings = databaseSettings
+
+			try:
+				self.connectoToDatabase( sendErrorPopUp=False)
+				allSpools = SpoolModel.select()
+				self.closeDatabase()
+			except Exception as e:
+				errorMessage = "local database: " + str(e)
+				self._logger.error("Connecting to local database not possible")
+				self._logger.exception(e)
+				try:
+					self.closeDatabase()
+				except Exception:
+					pass  # ignore close exception
+
+
+			databaseSettings.type = currentDatabaseType
+			databaseSettings.useExternal = True
+			self._databaseSettings = databaseSettings
+
+			try:
+				self.connectoToDatabase( sendErrorPopUp=False)
+				self._createDatabase(True)
+				for spool in allSpools:
+					spoolJson = model_to_dict(spool)
+					SpoolModel.insert(spoolJson).execute()
+					copySpoolCount = copySpoolCount + 1
+				self.closeDatabase()
+			except Exception as e:
+				errorMessage = "database: " + str(e)
+				self._logger.error("Connecting to external database not possible")
+				self._logger.exception(e)
+				try:
+					self.closeDatabase()
+				except Exception:
+					pass  # ignore close exception			
+
+		finally:
+			# restore orig. databasettings
+			if (backupCurrentDatabaseSettings != None):
+				self._databaseSettings = backupCurrentDatabaseSettings
+
+		return {
+			"success": loadResult,
+			"copySpoolCount": copySpoolCount
+		}
 
 	################################################################################################ DATABASE OPERATIONS
 	def _handleReusableConnection(self, databaseCallMethode, withReusedConnection, methodeNameForLogging, defaultReturnValue=None):
@@ -820,11 +897,13 @@ class DatabaseManager(object):
 		# always read local meta data
 		try:
 			currentDatabaseType = databaseSettings.type
+			currentUseExternal = databaseSettings.useExternal
 
 			# First load meta from local sqlite database
 			databaseSettings.type = "sqlite"
 			databaseSettings.baseFolder = self._databaseSettings.baseFolder
 			databaseSettings.fileLocation = self._databaseSettings.fileLocation
+			databaseSettings.useExternal = False
 			self._databaseSettings = databaseSettings
 			try:
 				self.connectoToDatabase( sendErrorPopUp=False)
@@ -840,8 +919,9 @@ class DatabaseManager(object):
 				except Exception:
 					pass  # ignore close exception
 
-			# Use orign Databasetype to collect the other meta dtaa (if neeeded)
+			# Use orign Databasetype to collect the other meta data (if neeeded)
 			databaseSettings.type = currentDatabaseType
+			databaseSettings.useExternal = currentUseExternal
 			if (databaseSettings.useExternal == True):
 				# External DB
 				self._databaseSettings = databaseSettings
@@ -998,6 +1078,8 @@ class DatabaseManager(object):
 					myQuery = myQuery.order_by(SpoolModel.material.desc())
 				else:
 					myQuery = myQuery.order_by(SpoolModel.material.asc())
+
+					self._logger.info("Quering spools: %s" % myQuery)
 			return myQuery
 
 		return self._handleReusableConnection(databaseCallMethode, withReusedConnection, "loadAllSpoolsByQuery")
