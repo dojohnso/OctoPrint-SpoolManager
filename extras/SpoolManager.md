@@ -4,14 +4,14 @@ layout: plugin
 id: SpoolManager
 title: OctoPrint-SpoolManager
 description: Plugin to manage Spools
-author: OllisGit, mdziekon
+author: dojohnso
 license: AGPLv3
 
 date: 2023-07-04
 
-homepage: https://github.com/mdziekon/OctoPrint-SpoolManager
-source: https://github.com/mdziekon/OctoPrint-SpoolManager
-archive: https://github.com/mdziekon/OctoPrint-SpoolManager/archive/master.zip
+homepage: https://github.com/you/OctoPrint-SpoolManager
+source: https://github.com/you/OctoPrint-SpoolManager
+archive: https://github.com/you/OctoPrint-SpoolManager/archive/main.zip
 
 # TODO
 # Set this to true if your plugin uses the dependency_links setup parameter to include
